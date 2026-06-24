@@ -1,6 +1,10 @@
 {
-  "name": "Faedo de Ciñera",
-  "short_name": "Faedo",
+  "name": "Ciñera",
+  "short_name": "Ciñera",
+  "description": "Ciñera, sólo hay una. Descubre un pueblo que mantiene su esencia original.",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "es-ES",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -15,7 +19,7 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#047857",
+  "theme_color": "#349981",
   "background_color": "#ffffff",
   "display": "standalone"
 }

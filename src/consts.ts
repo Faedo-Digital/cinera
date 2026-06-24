@@ -2,7 +2,6 @@
 export const SITE_TITLE = "Ciñera - Sólo hay una";
 export const SITE_DESCRIPTION =
   "Ciñera, sólo hay una. Descubre un pueblo que mantiene su esencia original.";
-export const SITE_URL = "https://cinera.es";
 export const SITE_NAME = "Ciñera";
 export const SITE_LOCALE = "es-ES";
 export const SITE_IMAGE = "/web-app-manifest-512x512.png";

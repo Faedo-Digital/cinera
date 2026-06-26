@@ -3,6 +3,9 @@
   "type": "module",
   "version": "0.0.1",
   "packageManager": "pnpm@11.0.5",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "dev:fresh": "rm -rf node_modules/.vite .astro && astro dev",

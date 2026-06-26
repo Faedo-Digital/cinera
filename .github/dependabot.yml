@@ -1,17 +1,7 @@
 version: 2
-
-# La org puede redirigir npm a GitHub Packages; este repo solo usa paquetes públicos.
-registries:
-  npmjs:
-    type: npm-registry
-    url: https://registry.npmjs.org
-    replaces-base: true
-
 updates:
   - package-ecosystem: "npm"
     directory: "/"
-    registries:
-      - npmjs
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 1

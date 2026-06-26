@@ -1,6 +1,7 @@
 ---
 import SectionHeader from "@/components/SectionHeader.astro";
 import Layout from "@components/Layout.astro";
+import Prose from "@components/Prose.astro";
 import {
   formatSpainPhoneForDisplay,
   gastronomiaCallTitle,
@@ -18,7 +19,7 @@ import {
       title="Comer en Ciñera"
       description="Restaurantes, bares y lugares donde disfrutar de la gastronomía local."
     />
-    <div class="prose prose-slate max-w-3xl mx-auto mt-8">
+    <Prose class="max-w-3xl mt-8">
       <p>
         En Ciñera puedes disfrutar de la gastronomía local en los mejores
         restaurantes y bares de la zona. Muchas personas se desplazan a Ciñera
@@ -61,6 +62,6 @@ import {
           ))
         }
       </ul>
-    </div>
+    </Prose>
   </section>
 </Layout>

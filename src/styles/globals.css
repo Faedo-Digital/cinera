@@ -1,14 +1,13 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-/* Alias semánticos (Astro inyecta --font-fraunces / --font-figtree en Layout) */
-:root {
-  --font-heading: var(--font-fraunces);
-  --font-body: var(--font-figtree);
+/* Enlaza las fuentes de Astro (Font) con los tokens de Tailwind */
+@theme inline {
+  --font-sans: var(--font-figtree);
+  --font-serif: var(--font-fraunces);
 }
 
-/* Tema personalizado - Tailwind v4 */
 @theme {
-  /* Colores personalizados */
   --color-primary-50: #eef8f4;
   --color-primary-100: #d5efe4;
   --color-primary-200: #ace0ca;
@@ -20,16 +19,21 @@
   --color-primary-800: #1f4d44;
   --color-primary-900: #1b413a;
 
-  /* Acentos de contenido (.prose); equivalentes a emerald-800 / emerald-900 de Tailwind */
   --color-prose-heading: #065f46;
   --color-prose-strong: #064e3b;
 
   --container: 1200px;
   --spacing-custom: 10px;
-
-  --font-family-heading: var(--font-fraunces);
-  --font-family-body: var(--font-figtree);
   --font-size-base: 19px;
+}
+
+@layer utilities {
+  .container {
+    width: 100%;
+    max-width: var(--container);
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
 }
 
 /* Accesibilidad básica */
@@ -37,7 +41,6 @@ html:focus-within {
   scroll-behavior: smooth;
 }
 
-/* Respetar preferencias de movimiento reducido */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -49,21 +52,29 @@ html:focus-within {
   }
 }
 
-/* Tipografía base para buena legibilidad */
 body {
   background-color: white;
   color: rgb(31 41 55);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
   font-size: var(--font-size-base);
   line-height: 1.5;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
   font-weight: 400;
   line-height: 1.1;
+}
+
+h1 {
+  font-size: 3rem;
 }
 
 p a {
@@ -73,44 +84,57 @@ p a {
   text-decoration: underline;
 }
 
-p a:hover {
-  text-decoration: underline;
-}
-
 p a:focus-visible {
   outline: 2px solid var(--color-primary-400);
   outline-offset: 2px;
 }
 
+/* Ajustes de marca sobre @tailwindcss/typography */
 .prose {
-  h3, h2 {
-    color: var(--color-prose-heading);
-  }
-
-  > section {
-    margin-bottom: 32px;
-  
-    h3, h2 {
-      color: var(--color-prose-heading);
-    }
-  }
+  --tw-prose-headings: var(--color-prose-heading);
+  --tw-prose-bold: var(--color-prose-strong);
+  --tw-prose-links: var(--color-primary-700);
 }
 
-/* Listas personalizadas con check icon */
-.prose ul {
-  margin: 20px 0 20px 20px;
+.prose :where(h2) {
+  margin-top: 2rem;
+  margin-bottom: var(--spacing-custom);
+  font-size: 1.8rem;
+}
+
+.prose :where(h3) {
+  margin-top: 2rem;
+  margin-bottom: var(--spacing-custom);
+  font-size: 1.4rem;
+}
+
+.prose :where(p) {
+  margin-bottom: var(--spacing-custom);
+}
+
+.prose :where(strong) {
+  color: var(--color-prose-strong);
+}
+
+.prose > section {
+  margin-bottom: 2rem;
+}
+
+/* Listas con icono de check */
+.prose :where(ul) {
+  margin: 1.25rem 0 1.25rem 1.25rem;
   list-style: none;
   padding-left: 0;
 }
 
-.prose ul li {
+.prose :where(ul > li) {
   padding-left: 2rem;
   position: relative;
   margin-bottom: 0.5rem;
 }
 
-.prose ul li::before {
-  content: '';
+.prose :where(ul > li)::before {
+  content: "";
   position: absolute;
   left: 0;
   top: 0.25rem;
@@ -119,71 +143,8 @@ p a:focus-visible {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
   background-size: contain;
   background-repeat: no-repeat;
-  flex-shrink: 0;
 }
 
-/* Utilidades */
-@layer utilities {
-  .container {
-    width: 100%;
-    max-width: var(--container);
-    margin-inline: auto;
-    padding-inline: 1rem;
-  }
-  
-  /* Clases de fuente personalizadas */
-  .font-heading {
-    font-family: var(--font-heading);
-  }
-  
-  .font-body {
-    font-family: var(--font-body);
-  }
-  
-  /* Display / UI con la misma familia que los títulos (Fraunces) */
-  .font-fraunces {
-    font-family: var(--font-heading);
-    font-weight: 400;
-  }
-    
-  /* Clases de peso para Figtree */
-  .font-figtree-light {
-    font-family: var(--font-body);
-    font-weight: 300;
-  }
-  
-  .font-figtree-regular {
-    font-family: var(--font-body);
-    font-weight: 400;
-  }
-  
-  .font-figtree-medium {
-    font-family: var(--font-body);
-    font-weight: 500;
-  }
-  
-  .font-figtree-semibold {
-    font-family: var(--font-body);
-    font-weight: 600;
-  }
-  
-  .font-figtree-bold {
-    font-family: var(--font-body);
-    font-weight: 700;
-  }
-  
-  .font-figtree-extrabold {
-    font-family: var(--font-body);
-    font-weight: 800;
-  }
-  
-  .font-figtree-black {
-    font-family: var(--font-body);
-    font-weight: 900;
-  }
-}
-
-/* Skip link visible al enfocar */
 .skip-link {
   position: absolute;
   left: -999px;
@@ -192,19 +153,19 @@ p a:focus-visible {
   height: 1px;
   overflow: hidden;
 }
+
 .skip-link:focus {
   left: 1rem;
   top: 1rem;
   width: auto;
   height: auto;
-  padding: .5rem 1rem;
+  padding: 0.5rem 1rem;
   background: #fff;
   border: 2px solid var(--color-primary-500);
-  border-radius: .25rem;
+  border-radius: 0.25rem;
   z-index: 50;
 }
 
-/* View Transitions - Animaciones personalizadas */
 @view-transition {
   navigation: auto;
 }
@@ -240,38 +201,3 @@ p a:focus-visible {
     opacity: 1;
   }
 }
-
-.lead {
-  font-weight: 600;
-  margin-bottom: 40px;
-}
-
-p {
-  margin-bottom: var(--spacing-custom);
-}
-
-p strong,
-li strong {
-  color: var(--color-prose-strong);
-}
-
-.prose {
-  h3 {
-    font-size: 1.4rem;
-    margin-bottom: var(--spacing-custom);
-    margin-top: 32px;
-  }
-  
-  
-  h2 {
-    margin-top: 32px;
-    font-size: 1.8rem;
-    margin-bottom: var(--spacing-custom);
-  }
-}
-
-
-h1 {
-  font-size: 3rem;
-}
-  

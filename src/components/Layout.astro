@@ -149,7 +149,7 @@ const navItems: { href: string; label: string }[] = [
       >
         <a
           href="/"
-          class="font-fraunces text-xl text-primary-700 no-underline inline-flex items-center gap-2"
+          class="font-serif text-xl text-primary-700 no-underline inline-flex items-center gap-2"
         >
           <img
             src="/bandera.webp"
@@ -166,7 +166,7 @@ const navItems: { href: string; label: string }[] = [
           navItems.length > 0 && (
             
               <div class="flex items-center gap-2">
-                <ul class="hidden md:flex font-fraunces text-prose-heading">
+                <ul class="hidden md:flex font-serif text-prose-heading">
                   {navItems.map((item) => (
                     <li>
                       <a class="px-2 py-6 inline-block no-underline hover:opacity-90" href={item.href}>
@@ -207,7 +207,7 @@ const navItems: { href: string; label: string }[] = [
       {
         navItems.length > 0 && (
           <div id="mobile-menu" class="hidden md:hidden border-t border-gray-100">
-            <ul class="container font-fraunces py-4 flex flex-col gap-3 text-center text-prose-heading">
+            <ul class="container font-serif py-4 flex flex-col gap-3 text-center text-prose-heading">
               {navItems.map((item, index) => (
                 <li>
                   <a
@@ -268,7 +268,7 @@ const navItems: { href: string; label: string }[] = [
         {
           navItems.length > 0 && (
             <nav aria-label="Secundario">
-              <ul class="md:flex md:gap-4 font-fraunces text-center">
+              <ul class="md:flex md:gap-4 font-serif text-center">
                 {navItems.map((item) => (
                   <li>
                     <a

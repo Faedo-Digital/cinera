@@ -1,5 +1,6 @@
 ---
 import Layout from "@components/Layout.astro";
+import Prose from "@components/Prose.astro";
 import SectionHeader from "@components/SectionHeader.astro";
 import Camera from "@components/Camera.astro";
 import Weather from "@/components/Weather.astro";
@@ -40,7 +41,7 @@ import Weather from "@/components/Weather.astro";
     </div>
 
     <!-- Contenido SEO y contexto -->
-    <div class="prose prose-slate max-w-3xl mx-auto mt-12">
+    <Prose class="max-w-3xl mt-12">
       <h2>Qué estás viendo</h2>
       <p>
         Esta cámara ofrece una vista en tiempo real de <strong>Ciñera</strong>
@@ -69,7 +70,7 @@ import Weather from "@/components/Weather.astro";
         >, el hayedo premiado como bosque mejor cuidado de España en 2007, y
         punto de partida del Camino del Carbón.
       </p>
-    </div>
+    </Prose>
   </section>
 </Layout>
 

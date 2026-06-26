@@ -9,6 +9,7 @@ import { Image } from "astro:assets";
 import imageFaedo from "@assets/faedo-5.webp";
 import imageCamino from "@assets/camino.webp";
 import Button from "@/components/Button.astro";
+import Prose from "@components/Prose.astro";
 import WhatsappBanner from "@components/WhatsappBanner.astro";
 ---
 
@@ -24,7 +25,7 @@ import WhatsappBanner from "@components/WhatsappBanner.astro";
       description="Tu próxima visita a un hermoso pueblo de la montaña central de León"
       icon="M221.28,34.75a64,64,0,0,0-90.49,0L60.69,104A15.9,15.9,0,0,0,56,115.31v73.38L26.34,218.34a8,8,0,0,0,11.32,11.32L67.32,200H140.7A15.92,15.92,0,0,0,152,195.32l0,0,69.23-70A64,64,0,0,0,221.28,34.75ZM142.07,46.06A48,48,0,0,1,211.79,112H155.33l34.35-34.34a8,8,0,0,0-11.32-11.32L120,124.69V67.87ZM72,115.35l32-31.67v57l-32,32ZM140.7,184H83.32l56-56h56.74Z"
     />
-    <div class="prose prose-slate max-w-4xl mx-auto">
+    <Prose class="max-w-4xl">
       <p>
         Enclavado en el corazón de la Montaña Central de León, a 1.060 metros de
         altitud, Ciñera es mucho más que un destino: es una experiencia que
@@ -38,7 +39,7 @@ import WhatsappBanner from "@components/WhatsappBanner.astro";
         época minera que forjó el carácter de su gente, y la calidez de un
         pueblo vivo que te espera con los brazos abiertos.
       </p>
-    </div>
+    </Prose>
   </section>
 
   <WhatsappBanner />
@@ -48,10 +49,10 @@ import WhatsappBanner from "@components/WhatsappBanner.astro";
   <section class="py-20">
     <ScrollRevealText
       text="Adéntrate en el bosque más mágico de León"
-      class="max-w-2xl text-center mx-auto px-4 mb-10 font-fraunces text-emerald-800"
+      class="max-w-2xl text-center mx-auto px-4 mb-10 font-serif text-emerald-800"
     />
 
-    <div class="prose prose-slate max-w-4xl mx-auto px-4">
+    <Prose class="max-w-4xl px-4">
       <p>
         El Faedo es el tesoro natural de Ciñera, un hayedo centenario que parece
         sacado de las páginas de un libro de fantasía. Imagina caminar bajo la
@@ -81,7 +82,7 @@ import WhatsappBanner from "@components/WhatsappBanner.astro";
         cristalinos susurran leyendas antiguas, y donde el Haya Fagus, con sus
         500 años de vida, ha sido testigo de generaciones de ciñereños.
       </p>
-    </div>
+    </Prose>
     <div class="text-center mt-8 mb-16">
       <Button
         href="https://faedo.es"

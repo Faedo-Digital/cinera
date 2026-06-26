@@ -1,6 +1,7 @@
 ---
 import Button from "@/components/Button.astro";
 import Layout from "@components/Layout.astro";
+import Prose from "@components/Prose.astro";
 import SectionHeader from "@components/SectionHeader.astro";
 ---
 
@@ -14,7 +15,7 @@ import SectionHeader from "@components/SectionHeader.astro";
       description="Un lugar con una identidad tan marcada que prácticamente se escribe sola. Del paisaje de montaña al carbón, y del carbón a la naturaleza."
     />
 
-    <div class="prose prose-slate max-w-3xl mx-auto mt-8">
+    <Prose class="max-w-3xl mt-8">
       <p>
         Ciñera es el corazón de la Montaña Central Leonesa. Su historia es un
         relato de transformación: de la vida rural tradicional al auge —y
@@ -96,6 +97,6 @@ import SectionHeader from "@components/SectionHeader.astro";
         contundente, de montaña, y parte esencial de la identidad culinaria de
         la zona.
       </p>
-    </div>
+    </Prose>
   </section>
 </Layout>

@@ -5,6 +5,9 @@ import SectionHeader from "@components/SectionHeader.astro";
 import Button from "@/components/Button.astro";
 import Prose from "@components/Prose.astro";
 import WhatsappBanner from "@components/WhatsappBanner.astro";
+import { Image } from "astro:assets";
+import imageFaedo from "@assets/faedo-5.webp";
+import imagePozo from "@assets/memoria/pozo.webp";
 ---
 
 <Layout
@@ -38,24 +41,75 @@ import WhatsappBanner from "@components/WhatsappBanner.astro";
 
   <WhatsappBanner />
 
+  <!-- Faedo: imagen izquierda / texto derecha -->
   <section class="container py-16">
-    <SectionHeader title="El Faedo de Ciñera" />
-    <Prose class="max-w-3xl">
-      <p>
-        El Faedo es el hayedo emblemático de Ciñera, reconocido como el Bosque
-        mejor cuidado de España en 2007. Si quieres conocer la ruta, el
-        patrimonio y cómo visitarlo, en faedo.es encontrarás toda la
-        información.
-      </p>
-    </Prose>
-    <div class="text-center mt-8 mb-8">
-      <Button
-        href="https://faedo.es"
-        text="Descubre más sobre el Faedo de Ciñera"
-        title="Descubre más sobre el Faedo de Ciñera"
-        target="_blank"
-        rel="noopener noreferrer"
-      />
+    <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+      <div class="order-1">
+        <Image
+          src={imageFaedo}
+          alt="Hayedo del Faedo de Ciñera"
+          class="w-full h-full min-h-[280px] md:min-h-[360px] rounded-2xl object-cover"
+          widths={[480, 768, 1024]}
+          sizes="(max-width: 768px) 100vw, 50vw"
+          loading="lazy"
+        />
+      </div>
+      <div class="order-2">
+        <h2 class="text-3xl text-emerald-800 mb-4 text-balance">
+          El Faedo de Ciñera
+        </h2>
+        <Prose class="max-w-none">
+          <p>
+            El Faedo es el hayedo emblemático de Ciñera, reconocido como el
+            Bosque mejor cuidado de España en 2007. Si quieres conocer la ruta,
+            el patrimonio y cómo visitarlo, en faedo.es encontrarás toda la
+            información.
+          </p>
+        </Prose>
+        <Button
+          href="https://faedo.es"
+          text="Descubre más sobre el Faedo de Ciñera"
+          title="Descubre más sobre el Faedo de Ciñera"
+          target="_blank"
+          rel="noopener noreferrer"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Pozo Ibarra: texto izquierda / imagen derecha -->
+  <section class="container py-16 pt-0">
+    <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+      <div class="order-2 md:order-1">
+        <h2 class="text-3xl text-emerald-800 mb-4 text-balance">
+          El Pozo Ibarra
+        </h2>
+        <Prose class="max-w-none">
+          <p>
+            El Pozo Ibarra es el gran símbolo del patrimonio minero de Ciñera. Su
+            castillete marca el Camino del Carbón y recuerda la época en que el
+            carbón forjó el carácter de este pueblo. Si quieres conocer su
+            historia completa, en faedo.es encontrarás todos los detalles.
+          </p>
+        </Prose>
+        <Button
+          href="https://faedo.es/pozo-ibarra"
+          text="Descubre más sobre el Pozo Ibarra"
+          title="Descubre más sobre el Pozo Ibarra"
+          target="_blank"
+          rel="noopener noreferrer"
+        />
+      </div>
+      <div class="order-1 md:order-2">
+        <Image
+          src={imagePozo}
+          alt="Pozo Ibarra de Ciñera"
+          class="w-full h-full min-h-[280px] md:min-h-[360px] rounded-2xl object-cover"
+          widths={[480, 768, 1024]}
+          sizes="(max-width: 768px) 100vw, 50vw"
+          loading="lazy"
+        />
+      </div>
     </div>
   </section>
 </Layout>

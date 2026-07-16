@@ -1,36 +1,33 @@
 ---
 import { Image } from "astro:assets";
 import heroPlaceholder from "../assets/faedo-de-cinera.webp";
-import heroVideo from "../assets/hero.mp4";
 import Button from "./Button.astro";
+import Camera from "./Camera.astro";
 ---
 
 <section
   class="relative min-h-[500px] md:min-h-[600px] flex items-center justify-center overflow-hidden"
 >
   <div class="absolute inset-0 z-0">
+    <!-- Imagen estática: LCP y fondo hasta que arranque el stream -->
     <Image
       src={heroPlaceholder}
-      alt="Hayedo del Faedo de Ciñera"
+      alt="Vista de Ciñera"
       class="absolute inset-0 w-full h-full object-cover"
       widths={[768, 1024, 1280, 1920]}
       sizes="100vw"
       loading="eager"
+      fetchpriority="high"
     />
 
-    <video
-      class="absolute inset-0 w-full h-full object-cover z-10"
-      playsinline
-      autoplay
-      muted
-      loop
-      aria-label="Video de Ciñera"
-    >
-      <source src={heroVideo} type="video/mp4" />
-      <p>Tu navegador no soporta video HTML5.</p>
-    </video>
+    <!-- Webcam en directo (diferida); si falla, usa el vídeo del Faedo -->
+    <Camera
+      mode="hero"
+      deferred
+      loadingText="Conectando con Ciñera en directo…"
+    />
 
-    <div class="absolute inset-0 bg-black/30 z-20"></div>
+    <div class="absolute inset-0 bg-black/30 z-20 pointer-events-none"></div>
   </div>
 
   <div class="relative z-30 container text-center px-4 py-16">
@@ -48,8 +45,10 @@ import Button from "./Button.astro";
     <div class="mt-8">
       <Button
         href="/directo"
-        text="Ir a webcam"
-        title="Ir a webcam"
+        text="Ver Ciñera en directo"
+        title="Ver Ciñera en directo"
+        target="_self"
+        rel=""
       />
     </div>
   </div>

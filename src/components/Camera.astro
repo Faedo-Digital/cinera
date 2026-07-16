@@ -1,9 +1,31 @@
 ---
 import { Image } from "astro:assets";
 import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
+import heroFallbackVideo from "@assets/hero.mp4";
+
+interface Props {
+  /** `page`: embed en /directo. `hero`: fondo a pantalla completa en la home. */
+  mode?: "page" | "hero";
+  loadingText?: string;
+  /** Retrasa el arranque del stream para no competir con el LCP. */
+  deferred?: boolean;
+}
+
+const {
+  mode = "page",
+  loadingText = "Conectando con la cámara…",
+  deferred = false,
+} = Astro.props;
+
+const isHero = mode === "hero";
 ---
 
-<div id="camara-wrapper" class="camara-wrapper">
+<div
+  id="camara-wrapper"
+  class:list={["camara-wrapper", isHero && "camara-wrapper--hero"]}
+  data-mode={mode}
+  data-deferred={deferred ? "1" : "0"}
+>
   <!-- Estado: cargando -->
   <div id="estado-cargando" class="camara-estado estado-cargando">
     <Image
@@ -12,27 +34,51 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
       width={180}
       height={45}
       class="logo-cargando"
-      loading="eager"
+      loading={isHero ? "lazy" : "eager"}
     />
     <span class="spinner" aria-hidden="true"></span>
-    <p>Conectando con la cámara…</p>
+    <p>{loadingText}</p>
   </div>
 
-  <!-- Estado: error -->
-  <div id="estado-error" class="camara-estado oculto">
-    <p class="error-icono">📡</p>
-    <p>La cámara no está disponible en este momento.</p>
-    <button id="btn-reintentar">Reintentar</button>
-  </div>
+  <!-- Estado: error (solo modo page) -->
+  {
+    !isHero && (
+      <div id="estado-error" class="camara-estado oculto">
+        <p class="error-icono">📡</p>
+        <p>La cámara no está disponible en este momento.</p>
+        <button id="btn-reintentar" type="button">Reintentar</button>
+      </div>
+    )
+  }
 
-  <!-- Estado: navegador no compatible -->
-  <div id="estado-no-soportado" class="camara-estado oculto">
-    <p class="error-icono">⚠️</p>
-    <p>
-      Tu navegador no admite la reproducción de este vídeo en directo. Prueba a
-      actualizarlo o usa Chrome, Firefox o Safari recientes.
-    </p>
-  </div>
+  <!-- Estado: navegador no compatible (solo modo page) -->
+  {
+    !isHero && (
+      <div id="estado-no-soportado" class="camara-estado oculto">
+        <p class="error-icono">⚠️</p>
+        <p>
+          Tu navegador no admite la reproducción de este vídeo en directo. Prueba
+          a actualizarlo o usa Chrome, Firefox o Safari recientes.
+        </p>
+      </div>
+    )
+  }
+
+  <!-- Fallback hero: vídeo del Faedo si el stream falla -->
+  {
+    isHero && (
+      <video
+        id="camara-fallback"
+        class="oculto"
+        playsinline
+        muted
+        loop
+        aria-label="Vídeo de Ciñera"
+      >
+        <source src={heroFallbackVideo} type="video/mp4" />
+      </video>
+    )
+  }
 
   <video
     id="camara-vivo"
@@ -42,26 +88,74 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     webkit-playsinline
     class="oculto"></video>
 
-  <button
-    type="button"
-    id="btn-fullscreen"
-    class="btn-fullscreen oculto"
-    aria-label="Pantalla completa"
-    aria-pressed="false"
-  >
-    <span class="icono-fs-expandir" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-    </span>
-    <span class="icono-fs-contraer oculto" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
-    </span>
-  </button>
+  {
+    isHero && (
+      <div
+        id="indicador-directo"
+        class="indicador-directo oculto"
+        aria-live="polite"
+      >
+        <span class="indicador-directo-punto" aria-hidden="true"></span>
+        <span>En directo</span>
+      </div>
+    )
+  }
+
+  {
+    !isHero && (
+      <button
+        type="button"
+        id="btn-fullscreen"
+        class="btn-fullscreen oculto"
+        aria-label="Pantalla completa"
+        aria-pressed="false"
+      >
+        <span class="icono-fs-expandir" aria-hidden="true">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            ><path
+              d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+            ></path></svg
+          >
+        </span>
+        <span class="icono-fs-contraer oculto" aria-hidden="true">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            ><path
+              d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"
+            ></path></svg
+          >
+        </span>
+      </button>
+    )
+  }
 </div>
-<details id="debug-panel" class="debug-panel oculto" open>
-  <summary>Diagnóstico de reproducción</summary>
-  <div id="debug-info" class="debug-info"></div>
-  <pre id="debug-log" class="debug-log"></pre>
-</details>
+
+{
+  !isHero && (
+    <details id="debug-panel" class="debug-panel oculto" open>
+      <summary>Diagnóstico de reproducción</summary>
+      <div id="debug-info" class="debug-info"></div>
+      <pre id="debug-log" class="debug-log"></pre>
+    </details>
+  )
+}
 
 <script>
   import Hls from "hls.js";
@@ -69,13 +163,28 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
   const video = document.getElementById("camara-vivo") as HTMLVideoElement;
   const wrapper = document.getElementById("camara-wrapper")!;
   const elCargando = document.getElementById("estado-cargando")!;
-  const elError = document.getElementById("estado-error")!;
-  const elNoSoportado = document.getElementById("estado-no-soportado")!;
-  const btnReintentar = document.getElementById("btn-reintentar")!;
-  const btnFullscreen = document.getElementById("btn-fullscreen")!;
-  const iconoExpandir = btnFullscreen.querySelector(".icono-fs-expandir")!;
-  const iconoContraer = btnFullscreen.querySelector(".icono-fs-contraer")!;
+  const elError = document.getElementById("estado-error");
+  const elNoSoportado = document.getElementById("estado-no-soportado");
+  const elFallback = document.getElementById(
+    "camara-fallback",
+  ) as HTMLVideoElement | null;
+  const elIndicadorDirecto = document.getElementById("indicador-directo");
+  const btnReintentar = document.getElementById("btn-reintentar");
+  const btnFullscreen = document.getElementById(
+    "btn-fullscreen",
+  ) as HTMLButtonElement | null;
+  const iconoExpandir = btnFullscreen?.querySelector(".icono-fs-expandir");
+  const iconoContraer = btnFullscreen?.querySelector(".icono-fs-contraer");
   const url = "https://stream.faedodigital.com/cam/index.m3u8";
+  const isHero = wrapper.dataset.mode === "hero";
+  const deferred = wrapper.dataset.deferred === "1";
+
+  type EstadoUi =
+    | "cargando"
+    | "error"
+    | "video"
+    | "no-soportado"
+    | "fallback";
 
   function fullscreenElementActual(): Element | null {
     return (
@@ -87,6 +196,7 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
   }
 
   function syncUiFullscreen() {
+    if (!btnFullscreen || !iconoExpandir || !iconoContraer) return;
     const fs = fullscreenElementActual();
     const activo = fs === wrapper || fs === video;
     btnFullscreen.setAttribute("aria-pressed", activo ? "true" : "false");
@@ -110,11 +220,7 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
   }
 
   async function entrarFullscreen() {
-    const w = wrapper as HTMLElement & {
-      webkitRequestFullscreen?: () => void;
-    };
     const v = video as HTMLVideoElement & {
-      webkitRequestFullscreen?: () => void;
       webkitEnterFullscreen?: () => void;
     };
 
@@ -154,9 +260,11 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     }
   }
 
-  btnFullscreen.addEventListener("click", () => {
-    toggleFullscreen().catch(() => {});
-  });
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener("click", () => {
+      toggleFullscreen().catch(() => {});
+    });
+  }
 
   document.addEventListener("fullscreenchange", syncUiFullscreen);
   document.addEventListener(
@@ -171,7 +279,7 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
   let hls: Hls | null = null;
   let timeoutReintento: ReturnType<typeof setTimeout> | null = null;
   let timeoutCarga: ReturnType<typeof setTimeout> | null = null;
-  let estadoActual: "cargando" | "error" | "video" | "no-soportado" = "cargando";
+  let estadoActual: EstadoUi = "cargando";
   const MAX_LOGS = 30;
   const logs: string[] = [];
   const params = new URLSearchParams(window.location.search);
@@ -208,20 +316,26 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
       `HLS nativo: ${nativeHls}`,
       `stream: ${url}`,
       `reintentos: ${reintentos}/${MAX_REINTENTOS}`,
+      `mode: ${isHero ? "hero" : "page"}`,
     ];
     if (extra) lines.push(extra);
     debugInfo.textContent = lines.join("\n");
   }
 
-  function mostrar(
-    estado: "cargando" | "error" | "video" | "no-soportado",
-  ) {
+  function mostrar(estado: EstadoUi) {
     estadoActual = estado;
     elCargando.classList.toggle("oculto", estado !== "cargando");
-    elError.classList.toggle("oculto", estado !== "error");
-    elNoSoportado.classList.toggle("oculto", estado !== "no-soportado");
+    elError?.classList.toggle("oculto", estado !== "error");
+    elNoSoportado?.classList.toggle("oculto", estado !== "no-soportado");
     video.classList.toggle("oculto", estado !== "video");
-    btnFullscreen.classList.toggle("oculto", estado !== "video");
+    elFallback?.classList.toggle("oculto", estado !== "fallback");
+    elIndicadorDirecto?.classList.toggle("oculto", estado !== "video");
+    btnFullscreen?.classList.toggle("oculto", estado !== "video");
+
+    if (estado === "fallback" && elFallback) {
+      elFallback.play().catch(() => {});
+    }
+
     if (estado !== "video") {
       if (fullscreenElementActual()) {
         salirFullscreen().catch(() => {});
@@ -252,6 +366,16 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     cancelarTimeoutCarga();
   }
 
+  function fallarDefinitivo() {
+    if (isHero) {
+      logDebug("hero: fallback al vídeo del Faedo");
+      mostrar("fallback");
+      return;
+    }
+    logDebug("sin más reintentos, mostrando estado de error");
+    mostrar("error");
+  }
+
   function onError() {
     logDebug("error fatal de reproducción");
     destruirHls();
@@ -262,13 +386,13 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
       );
       timeoutReintento = setTimeout(iniciarStream, DELAY_REINTENTO_MS);
     } else {
-      logDebug("sin más reintentos, mostrando estado de error");
-      mostrar("error");
+      fallarDefinitivo();
     }
   }
 
   function iniciarStream() {
     destruirHls();
+    wrapper.classList.remove("camara-wrapper--deferred");
     mostrar("cargando");
     renderInfo();
     logDebug("iniciando stream");
@@ -306,7 +430,6 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
         if (data.fatal) onError();
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari / iOS — HLS nativo
       logDebug("ruta HLS nativo");
       video.src = url;
       video.load();
@@ -339,18 +462,41 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     } else {
       logDebug("navegador sin soporte HLS");
       cancelarTimeoutCarga();
-      mostrar("no-soportado");
+      if (isHero) {
+        fallarDefinitivo();
+      } else {
+        mostrar("no-soportado");
+      }
     }
   }
 
-  btnReintentar.addEventListener("click", () => {
+  btnReintentar?.addEventListener("click", () => {
     logDebug("click en reintentar");
     reintentos = 0;
     iniciarStream();
   });
 
   renderInfo("esperando inicio");
-  iniciarStream();
+
+  if (deferred) {
+    wrapper.classList.add("camara-wrapper--deferred");
+    const kickoff = () => iniciarStream();
+    const ric = (
+      window as Window & {
+        requestIdleCallback?: (
+          cb: IdleRequestCallback,
+          opts?: IdleRequestOptions,
+        ) => number;
+      }
+    ).requestIdleCallback;
+    if (ric) {
+      ric(kickoff, { timeout: 2500 });
+    } else {
+      window.setTimeout(kickoff, 1);
+    }
+  } else {
+    iniciarStream();
+  }
 </script>
 
 <style>
@@ -361,6 +507,71 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     background: var(--color-emerald-950);
     border-radius: 0.5rem;
     overflow: hidden;
+  }
+
+  .camara-wrapper--hero {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .camara-wrapper--deferred {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .camara-wrapper--hero:not(.camara-wrapper--deferred) {
+    background: var(--color-emerald-950);
+  }
+
+  .camara-wrapper--hero .estado-cargando {
+    justify-content: flex-start;
+    padding-top: clamp(5.5rem, 16vh, 8rem);
+  }
+
+  .indicador-directo {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 9999px;
+    background: rgba(2, 44, 34, 0.75);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+
+  .indicador-directo-punto {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: #ef4444;
+    animation: pulso-directo 1.4s ease-in-out infinite;
+  }
+
+  @keyframes pulso-directo {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.85);
+    }
   }
 
   video {
@@ -385,7 +596,9 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     background: rgba(2, 44, 34, 0.75);
     color: var(--color-emerald-200);
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    transition:
+      background 0.2s,
+      border-color 0.2s;
   }
 
   .btn-fullscreen:hover {
@@ -482,7 +695,6 @@ import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
     line-height: 1.35;
   }
 
-  /* Spinner */
   .spinner {
     width: 2rem;
     height: 2rem;

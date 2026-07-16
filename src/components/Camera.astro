@@ -1,7 +1,20 @@
+---
+import { Image } from "astro:assets";
+import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
+---
+
 <div id="camara-wrapper" class="camara-wrapper">
   <!-- Estado: cargando -->
-  <div id="estado-cargando" class="camara-estado">
-    <span class="spinner"></span>
+  <div id="estado-cargando" class="camara-estado estado-cargando">
+    <Image
+      src={logoFaedoDigital}
+      alt="Faedo Digital"
+      width={180}
+      height={45}
+      class="logo-cargando"
+      loading="eager"
+    />
+    <span class="spinner" aria-hidden="true"></span>
     <p>Conectando con la cámara…</p>
   </div>
 
@@ -399,6 +412,15 @@
     gap: 0.75rem;
     color: var(--color-emerald-400);
     font-size: 0.9rem;
+  }
+
+  .estado-cargando {
+    gap: 1rem;
+  }
+
+  .logo-cargando {
+    width: min(180px, 45%);
+    height: auto;
   }
 
   .oculto {

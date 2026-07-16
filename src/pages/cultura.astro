@@ -1,15 +1,43 @@
 ---
 import Layout from "@components/Layout.astro";
+import Prose from "@components/Prose.astro";
+import SectionHeader from "@components/SectionHeader.astro";
 ---
 
 <Layout
   title="Cultura | Ciñera"
-  description="Sección de cultura de Ciñera. Próximamente."
+  description="Cultura y tradiciones de Ciñera: la fiesta de Santa Bárbara y el Cocido Gordonés."
 >
-  <section class="container py-20 text-center">
-    <h1 class="font-serif text-4xl md:text-5xl text-primary-700">Cultura</h1>
-    <p class="mt-4 text-lg text-gray-700">
-      Esta sección está en construcción. Muy pronto compartiremos contenido cultural de Ciñera.
-    </p>
+  <section class="container py-12 md:py-16">
+    <SectionHeader
+      title="Cultura de Ciñera"
+      description="Tradiciones que siguen vivas en un pueblo forjado por la minería y la montaña."
+    />
+
+    <Prose class="max-w-3xl mt-8">
+      <p>
+        El sentimiento de comunidad en Ciñera es inseparable de sus
+        celebraciones y de la cocina de montaña. Aquí la cultura no es un
+        museo: es lo que se celebra cada diciembre y lo que se sirve a la
+        mesa.
+      </p>
+
+      <h2>Santa Bárbara</h2>
+      <p>
+        La fiesta más importante del pueblo es la de{" "}
+        <strong>Santa Bárbara</strong>, patrona de los mineros, que se celebra
+        el 4 de diciembre. La procesión nocturna con velas, cargada de
+        simbolismo minero, es un acto único en la comarca y mantiene vivo el
+        recuerdo de generaciones que trabajaron bajo tierra.
+      </p>
+
+      <h2>Cocido Gordonés</h2>
+      <p>
+        En la mesa, la tradición se llama <strong>Cocido Gordonés</strong>:
+        contundente, de montaña, y parte esencial de la identidad culinaria de
+        la zona. Es el plato que mejor resume el carácter de Ciñera: sencillo,
+        generoso y ligado a la tierra.
+      </p>
+    </Prose>
   </section>
 </Layout>

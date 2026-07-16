@@ -17,6 +17,8 @@ import { ClientRouter } from "astro:transitions";
 import "../styles/globals.css";
 import Guia from "./Guia.astro";
 import MiniWeather from "./MiniWeather.astro";
+import { Image } from "astro:assets";
+import logoFaedoDigital from "@assets/logo-faedo-digital.webp";
 
 const {
   title = SITE_TITLE,
@@ -284,13 +286,23 @@ const navItems: { href: string; label: string }[] = [
           )
         }
       </div>
-      <p class="text-center text-sm">
-        Sitio web creado por <a
-          href="https://faedodigital.com"
+      <div class="footer-faedo py-6 flex justify-center">
+        <a
+          href="https://faedodigital.com/"
           target="_blank"
-          rel="noopener noreferrer">Faedo Digital</a
+          rel="noopener noreferrer"
+          title="Sitio web creado y mantenido por Faedo Digital"
         >
-      </p>
+          <Image
+            src={logoFaedoDigital}
+            alt="Faedo Digital"
+            width={180}
+            height={45}
+            class="h-10 w-auto"
+            loading="lazy"
+          />
+        </a>
+      </div>
     </footer>
   </body>
 </html>

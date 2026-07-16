@@ -12,6 +12,15 @@
     <button id="btn-reintentar">Reintentar</button>
   </div>
 
+  <!-- Estado: navegador no compatible -->
+  <div id="estado-no-soportado" class="camara-estado oculto">
+    <p class="error-icono">⚠️</p>
+    <p>
+      Tu navegador no admite la reproducción de este vídeo en directo. Prueba a
+      actualizarlo o usa Chrome, Firefox o Safari recientes.
+    </p>
+  </div>
+
   <video
     id="camara-vivo"
     autoplay
@@ -48,6 +57,7 @@
   const wrapper = document.getElementById("camara-wrapper")!;
   const elCargando = document.getElementById("estado-cargando")!;
   const elError = document.getElementById("estado-error")!;
+  const elNoSoportado = document.getElementById("estado-no-soportado")!;
   const btnReintentar = document.getElementById("btn-reintentar")!;
   const btnFullscreen = document.getElementById("btn-fullscreen")!;
   const iconoExpandir = btnFullscreen.querySelector(".icono-fs-expandir")!;
@@ -143,9 +153,12 @@
 
   const MAX_REINTENTOS = 3;
   const DELAY_REINTENTO_MS = 4000;
+  const TIMEOUT_CARGA_MS = 15000;
   let reintentos = 0;
   let hls: Hls | null = null;
   let timeoutReintento: ReturnType<typeof setTimeout> | null = null;
+  let timeoutCarga: ReturnType<typeof setTimeout> | null = null;
+  let estadoActual: "cargando" | "error" | "video" | "no-soportado" = "cargando";
   const MAX_LOGS = 30;
   const logs: string[] = [];
   const params = new URLSearchParams(window.location.search);
@@ -187,9 +200,13 @@
     debugInfo.textContent = lines.join("\n");
   }
 
-  function mostrar(estado: "cargando" | "error" | "video") {
+  function mostrar(
+    estado: "cargando" | "error" | "video" | "no-soportado",
+  ) {
+    estadoActual = estado;
     elCargando.classList.toggle("oculto", estado !== "cargando");
     elError.classList.toggle("oculto", estado !== "error");
+    elNoSoportado.classList.toggle("oculto", estado !== "no-soportado");
     video.classList.toggle("oculto", estado !== "video");
     btnFullscreen.classList.toggle("oculto", estado !== "video");
     if (estado !== "video") {
@@ -202,6 +219,13 @@
     renderInfo(`estado_actual: ${estado}`);
   }
 
+  function cancelarTimeoutCarga() {
+    if (timeoutCarga) {
+      clearTimeout(timeoutCarga);
+      timeoutCarga = null;
+    }
+  }
+
   function destruirHls() {
     if (hls) {
       logDebug("destruyendo instancia hls.js");
@@ -212,6 +236,7 @@
       clearTimeout(timeoutReintento);
       timeoutReintento = null;
     }
+    cancelarTimeoutCarga();
   }
 
   function onError() {
@@ -235,6 +260,13 @@
     renderInfo();
     logDebug("iniciando stream");
 
+    timeoutCarga = setTimeout(() => {
+      if (estadoActual === "cargando") {
+        logDebug(`timeout de carga (${TIMEOUT_CARGA_MS}ms)`);
+        onError();
+      }
+    }, TIMEOUT_CARGA_MS);
+
     if (Hls.isSupported()) {
       logDebug("ruta hls.js (MSE)");
       hls = new Hls({
@@ -248,6 +280,7 @@
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         logDebug("manifest parseado correctamente");
+        cancelarTimeoutCarga();
         video.play().catch(() => {});
         mostrar("video");
         reintentos = 0;
@@ -269,6 +302,7 @@
         "canplay",
         () => {
           logDebug("video canplay en HLS nativo");
+          cancelarTimeoutCarga();
           video.play().catch(() => {});
           mostrar("video");
           reintentos = 0;
@@ -291,7 +325,8 @@
       );
     } else {
       logDebug("navegador sin soporte HLS");
-      mostrar("error");
+      cancelarTimeoutCarga();
+      mostrar("no-soportado");
     }
   }
 

@@ -4,6 +4,8 @@ export interface GastronomiaPlace {
   description: string;
   /** Número en formato internacional (ej. +34987123456) para href="tel:..." */
   phoneTel: string;
+  /** Dirección física, cuando se conoce */
+  address?: string;
 }
 
 /** Formato legible para números españoles a partir de phoneTel (+34 y 9 dígitos). */
@@ -33,18 +35,21 @@ export const GASTRONOMIA_PLACES: GastronomiaPlace[] = [
     mapsUrl: "https://maps.app.goo.gl/UcEbKqNvWdoAiURk6",
     description: "Ideal para comidas y cenas. Especialidad en arroces y carnes.",
     phoneTel: "+34987584133",
+    address: "N-630, 24660 Ciñera, León",
   },
   {
     name: "Bar Baleo",
     mapsUrl: "https://maps.app.goo.gl/72jtvUyk9UpHvTBR8",
     description: "Ideal para comidas y tapeo",
     phoneTel: "+34987025685",
+    address: "Plaza Iglesia, 24660 Ciñera, León",
   },
   {
     name: "Hispano",
     mapsUrl: "https://maps.app.goo.gl/xAEuyqrRGmzcUZ5c6",
     description: "Ideal para comidas y tapeo",
     phoneTel: "+34987665250",
+    address: "Plaza Iglesia, 24660 Ciñera, León",
   },
   {
     name: "La Fontona",

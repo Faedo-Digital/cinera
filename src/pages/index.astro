@@ -2,12 +2,6 @@
 import Layout from "@components/Layout.astro";
 import Hero from "@components/Hero.astro";
 import SectionHeader from "@components/SectionHeader.astro";
-import ScrollRevealText from "@components/ScrollRevealText.astro";
-import MediaGrid from "@components/MediaGrid.astro";
-import { Image } from "astro:assets";
-
-import imageFaedo from "@assets/faedo-5.webp";
-import imageCamino from "@assets/camino.webp";
 import Button from "@/components/Button.astro";
 import Prose from "@components/Prose.astro";
 import WhatsappBanner from "@components/WhatsappBanner.astro";
@@ -44,46 +38,17 @@ import WhatsappBanner from "@components/WhatsappBanner.astro";
 
   <WhatsappBanner />
 
-  <MediaGrid />
-
-  <section class="py-20">
-    <ScrollRevealText
-      text="Adéntrate en el bosque más mágico de León"
-      class="max-w-2xl text-center mx-auto px-4 mb-10 font-serif text-emerald-800"
-    />
-
-    <Prose class="max-w-4xl px-4">
+  <section class="container py-16">
+    <SectionHeader title="El Faedo de Ciñera" />
+    <Prose class="max-w-3xl">
       <p>
-        El Faedo es el tesoro natural de Ciñera, un hayedo centenario que parece
-        sacado de las páginas de un libro de fantasía. Imagina caminar bajo la
-        bóveda de hayas retorcidas de más de 500 años, cuyas ramas se entrelazan
-        formando catedrales naturales donde la luz se filtra creando juegos de
-        sombras imposibles.
-      </p>
-
-      <div class="grid md:grid-cols-3 gap-4 my-8">
-        <Image
-          class="md:col-span-2 w-full h-full rounded-2xl object-cover object-center shadow-lg shadow-black/25"
-          src={imageFaedo}
-          alt="Pozo Ibarra"
-          loading="lazy"
-        />
-        <Image
-          class="w-full h-full rounded-2xl object-cover object-center shadow-lg shadow-black/25"
-          src={imageCamino}
-          alt="Pasarela de madera del Faedo de Ciñera"
-          loading="lazy"
-        />
-      </div>
-
-      <p>
-        El Faedo no es solo un bosque: es un lugar donde la naturaleza te habla.
-        Donde cada árbol retorcido cuenta historias de siglos, donde los arroyos
-        cristalinos susurran leyendas antiguas, y donde el Haya Fagus, con sus
-        500 años de vida, ha sido testigo de generaciones de ciñereños.
+        El Faedo es el hayedo emblemático de Ciñera, reconocido como el Bosque
+        mejor cuidado de España en 2007. Si quieres conocer la ruta, el
+        patrimonio y cómo visitarlo, en faedo.es encontrarás toda la
+        información.
       </p>
     </Prose>
-    <div class="text-center mt-8 mb-16">
+    <div class="text-center mt-8 mb-8">
       <Button
         href="https://faedo.es"
         text="Descubre más sobre el Faedo de Ciñera"

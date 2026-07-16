@@ -94,6 +94,8 @@ const waUrl = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
                     data-memoria-alt={foto.data.alt}
                     data-memoria-descripcion={foto.data.descripcion}
                     data-memoria-year={foto.data.year ?? ""}
+                    data-memoria-enlace-url={foto.data.enlaceUrl ?? ""}
+                    data-memoria-enlace-texto={foto.data.enlaceTexto ?? "Más sobre el patrimonio minero"}
                   >
                     <Image
                       src={foto.data.src}
@@ -119,6 +121,19 @@ const waUrl = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
                   <p class="text-slate-700 text-sm leading-relaxed mb-3">
                     {foto.data.descripcion}
                   </p>
+
+                  {foto.data.enlaceUrl && (
+                    <p class="mb-3">
+                      <a
+                        href={foto.data.enlaceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-sm text-primary-700 underline underline-offset-2 hover:text-primary-800"
+                      >
+                        {foto.data.enlaceTexto ?? "Más sobre el patrimonio minero"}
+                      </a>
+                    </p>
+                  )}
 
                   {foto.data.tags.length > 0 && (
                     <div class="flex flex-wrap gap-1 mb-3">
@@ -194,6 +209,15 @@ const waUrl = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
               class="text-slate-800 text-sm leading-relaxed"
             ></p>
             <p id="memoria-modal-year" class="text-slate-500 text-xs mt-2"></p>
+            <p id="memoria-modal-enlace-wrap" class="mt-2 hidden">
+              <a
+                id="memoria-modal-enlace"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm text-primary-700 underline underline-offset-2 hover:text-primary-800"
+              ></a>
+            </p>
           </div>
         </div>
       </div>
@@ -245,6 +269,12 @@ const waUrl = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
     const yearEl = document.getElementById("memoria-modal-year") as
       | HTMLParagraphElement
       | null;
+    const enlaceWrap = document.getElementById("memoria-modal-enlace-wrap") as
+      | HTMLParagraphElement
+      | null;
+    const enlaceEl = document.getElementById("memoria-modal-enlace") as
+      | HTMLAnchorElement
+      | null;
     const closeBtn = document.getElementById("memoria-modal-close") as
       | HTMLButtonElement
       | null;
@@ -257,6 +287,10 @@ const waUrl = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
       const dataAlt = trigger.getAttribute("data-memoria-alt") || "";
       const dataDescripcion = trigger.getAttribute("data-memoria-descripcion") || "";
       const dataYear = trigger.getAttribute("data-memoria-year") || "";
+      const dataEnlaceUrl = trigger.getAttribute("data-memoria-enlace-url") || "";
+      const dataEnlaceTexto =
+        trigger.getAttribute("data-memoria-enlace-texto") ||
+        "Más sobre el patrimonio minero";
 
       const thumbImg = trigger.querySelector("img") as HTMLImageElement | null;
       const src = thumbImg?.getAttribute("src") || "";
@@ -278,6 +312,18 @@ const waUrl = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
       if (titleEl) titleEl.textContent = dataAlt;
       if (descEl) descEl.textContent = dataDescripcion;
       if (yearEl) yearEl.textContent = dataYear ? dataYear : "";
+
+      if (enlaceWrap && enlaceEl) {
+        if (dataEnlaceUrl) {
+          enlaceEl.href = dataEnlaceUrl;
+          enlaceEl.textContent = dataEnlaceTexto;
+          enlaceWrap.classList.remove("hidden");
+        } else {
+          enlaceEl.removeAttribute("href");
+          enlaceEl.textContent = "";
+          enlaceWrap.classList.add("hidden");
+        }
+      }
 
       document.body.style.overflow = "hidden";
       closeBtn?.focus();

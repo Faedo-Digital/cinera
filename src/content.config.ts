@@ -16,6 +16,8 @@ const memoria = defineCollection({
       decadaLabel: z.string(), // "Años 30 – 40"
       order: z.number().default(0), // orden dentro de la década
       aportadaPor: z.string().optional(),
+      enlaceUrl: z.string().url().optional(),
+      enlaceTexto: z.string().optional(),
     }),
 });
 

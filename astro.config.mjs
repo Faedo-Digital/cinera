@@ -40,6 +40,9 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    build: {
+      target: ["chrome61", "firefox60", "safari11", "edge18"],
+    },
     resolve: {
       alias: {
         "@": "/src",

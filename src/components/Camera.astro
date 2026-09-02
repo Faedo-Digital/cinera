@@ -25,6 +25,7 @@ const isHero = mode === "hero";
   class:list={["camara-wrapper", isHero && "camara-wrapper--hero"]}
   data-mode={mode}
   data-deferred={deferred ? "1" : "0"}
+  data-camara-estado="cargando"
 >
   <!-- Estado: cargando -->
   <div id="estado-cargando" class="camara-estado estado-cargando">
@@ -37,7 +38,8 @@ const isHero = mode === "hero";
       loading={isHero ? "lazy" : "eager"}
     />
     <span class="spinner" aria-hidden="true"></span>
-    <p>{loadingText}</p>
+    <p id="texto-cargando">{loadingText}</p>
+    <p id="progreso-cargando" class="progreso-cargando" aria-live="polite"></p>
   </div>
 
   <!-- Estado: error (solo modo page) -->
@@ -45,7 +47,7 @@ const isHero = mode === "hero";
     !isHero && (
       <div id="estado-error" class="camara-estado oculto">
         <p class="error-icono">📡</p>
-        <p>La cámara no está disponible en este momento.</p>
+        <p id="texto-error">La cámara no está disponible en este momento.</p>
         <button id="btn-reintentar" type="button">Reintentar</button>
       </div>
     )
@@ -56,9 +58,10 @@ const isHero = mode === "hero";
     !isHero && (
       <div id="estado-no-soportado" class="camara-estado oculto">
         <p class="error-icono">⚠️</p>
-        <p>
-          Tu navegador no admite la reproducción de este vídeo en directo. Prueba
-          a actualizarlo o usa Chrome, Firefox o Safari recientes.
+        <p id="texto-no-soportado">
+          Tu navegador no puede reproducir este directo (requiere H.265/HEVC).
+          Prueba Safari o Chrome reciente en un dispositivo compatible, o vuelve
+          más tarde cuando haya una versión adaptativa.
         </p>
       </div>
     )
@@ -97,6 +100,32 @@ const isHero = mode === "hero";
       >
         <span class="indicador-directo-punto" aria-hidden="true"></span>
         <span>En directo</span>
+      </div>
+    )
+  }
+
+  {
+    !isHero && (
+      <div id="selector-calidad" class="selector-calidad oculto" role="group" aria-label="Calidad del directo">
+        <button
+          type="button"
+          id="btn-calidad-sd"
+          class="btn-calidad"
+          data-calidad="sd"
+          aria-pressed="true"
+        >
+          Estándar
+        </button>
+        <button
+          type="button"
+          id="btn-calidad-hd"
+          class="btn-calidad oculto"
+          data-calidad="hd"
+          aria-pressed="false"
+        >
+          Alta calidad (4K)
+          <span class="badge-hd oculto" aria-hidden="true">HD</span>
+        </button>
       </div>
     )
   }
@@ -159,343 +188,766 @@ const isHero = mode === "hero";
 
 <script>
   import Hls from "hls.js";
+  import {
+    CAMERA_SD_CODECS,
+    CAMERA_STREAM_URL,
+    DEFERRED_IDLE_TIMEOUT_MS,
+    DELAY_REINTENTO_MS,
+    MAX_REINTENTOS,
+    TIMEOUT_CARGA_MS,
+    TIMEOUT_PRIMER_FRAME_MS,
+    browserSupportsHevc,
+    choosePlaybackPathForKnownStream,
+    classifyHlsError,
+    codecsForCalidad,
+    formatDebugInfo,
+    mseSupportsCodecs,
+    nativeSupportsCodecs,
+    nextRetryDelayMs,
+    readStoredCalidad,
+    resolveCalidadInicial,
+    shouldRetryError,
+    streamUrlForCalidad,
+    umamiTrack,
+    writeStoredCalidad,
+    type CalidadCamara,
+    type CamaraAnalyticsPayload,
+    type ErrorCamaraTipo,
+    type EstadoUi,
+    type PlaybackPath,
+  } from "../lib/cameraStream";
 
-  const video = document.getElementById("camara-vivo") as HTMLVideoElement;
-  const wrapper = document.getElementById("camara-wrapper")!;
-  const elCargando = document.getElementById("estado-cargando")!;
-  const elError = document.getElementById("estado-error");
-  const elNoSoportado = document.getElementById("estado-no-soportado");
-  const elFallback = document.getElementById(
-    "camara-fallback",
-  ) as HTMLVideoElement | null;
-  const elIndicadorDirecto = document.getElementById("indicador-directo");
-  const btnReintentar = document.getElementById("btn-reintentar");
-  const btnFullscreen = document.getElementById(
-    "btn-fullscreen",
-  ) as HTMLButtonElement | null;
-  const iconoExpandir = btnFullscreen?.querySelector(".icono-fs-expandir");
-  const iconoContraer = btnFullscreen?.querySelector(".icono-fs-contraer");
-  const url = "https://stream.faedodigital.com/cam/index.m3u8";
-  const isHero = wrapper.dataset.mode === "hero";
-  const deferred = wrapper.dataset.deferred === "1";
+  type CameraController = {
+    wrapper: HTMLElement;
+    destroy: () => void;
+  };
 
-  type EstadoUi =
-    | "cargando"
-    | "error"
-    | "video"
-    | "no-soportado"
-    | "fallback";
+  let active: CameraController | null = null;
 
-  function fullscreenElementActual(): Element | null {
-    return (
-      document.fullscreenElement ??
-      (document as Document & { webkitFullscreenElement?: Element | null })
-        .webkitFullscreenElement ??
-      null
-    );
-  }
-
-  function syncUiFullscreen() {
-    if (!btnFullscreen || !iconoExpandir || !iconoContraer) return;
-    const fs = fullscreenElementActual();
-    const activo = fs === wrapper || fs === video;
-    btnFullscreen.setAttribute("aria-pressed", activo ? "true" : "false");
-    btnFullscreen.setAttribute(
-      "aria-label",
-      activo ? "Salir de pantalla completa" : "Pantalla completa",
-    );
-    iconoExpandir.classList.toggle("oculto", activo);
-    iconoContraer.classList.toggle("oculto", !activo);
-  }
-
-  async function salirFullscreen() {
-    const doc = document as Document & {
-      webkitExitFullscreen?: () => void;
-    };
-    if (document.exitFullscreen) {
-      await document.exitFullscreen().catch(() => {});
-    } else if (doc.webkitExitFullscreen) {
-      doc.webkitExitFullscreen();
+  function createCamera(wrapper: HTMLElement): CameraController {
+    const videoEl = wrapper.querySelector("#camara-vivo");
+    if (!(videoEl instanceof HTMLVideoElement)) {
+      return { wrapper, destroy: () => {} };
     }
-  }
+    const video = videoEl;
 
-  async function entrarFullscreen() {
-    const v = video as HTMLVideoElement & {
-      webkitEnterFullscreen?: () => void;
-    };
+    const elCargando = wrapper.querySelector("#estado-cargando");
+    const elError = wrapper.querySelector("#estado-error");
+    const elNoSoportado = wrapper.querySelector("#estado-no-soportado");
+    const elFallback = wrapper.querySelector(
+      "#camara-fallback",
+    ) as HTMLVideoElement | null;
+    const elIndicadorDirecto = wrapper.querySelector("#indicador-directo");
+    const elProgreso = wrapper.querySelector(
+      "#progreso-cargando",
+    ) as HTMLElement | null;
+    const elTextoError = wrapper.querySelector(
+      "#texto-error",
+    ) as HTMLElement | null;
+    const btnReintentar = wrapper.querySelector(
+      "#btn-reintentar",
+    ) as HTMLButtonElement | null;
+    const btnFullscreen = wrapper.querySelector(
+      "#btn-fullscreen",
+    ) as HTMLButtonElement | null;
+    const iconoExpandir = btnFullscreen?.querySelector(".icono-fs-expandir");
+    const iconoContraer = btnFullscreen?.querySelector(".icono-fs-contraer");
+    const selectorCalidad = wrapper.querySelector("#selector-calidad");
+    const btnCalidadSd = wrapper.querySelector(
+      "#btn-calidad-sd",
+    ) as HTMLButtonElement | null;
+    const btnCalidadHd = wrapper.querySelector(
+      "#btn-calidad-hd",
+    ) as HTMLButtonElement | null;
+    const badgeHd = btnCalidadHd?.querySelector(".badge-hd");
 
-    const intentar = async (el: HTMLElement) => {
-      if (el.requestFullscreen) {
-        await el.requestFullscreen();
-        return;
+    const isHero = wrapper.dataset.mode === "hero";
+    const deferred = wrapper.dataset.deferred === "1";
+    const mode = isHero ? "hero" : "page";
+
+    const isTypeSupportedProbe = window.MediaSource?.isTypeSupported?.bind(
+      window.MediaSource,
+    );
+    const hdDisponible =
+      !isHero &&
+      browserSupportsHevc({
+        isTypeSupported: isTypeSupportedProbe,
+        canPlayType: video.canPlayType.bind(video),
+        userAgent: navigator.userAgent,
+      });
+    let calidadActual: CalidadCamara = isHero
+      ? "sd"
+      : resolveCalidadInicial(hdDisponible, readStoredCalidad());
+
+    let streamUrl = isHero
+      ? CAMERA_STREAM_URL
+      : streamUrlForCalidad(calidadActual);
+
+    let sessionId = 0;
+    let reintentos = 0;
+    let hls: Hls | null = null;
+    let timeoutReintento: number | null = null;
+    let timeoutCarga: number | null = null;
+    let timeoutPrimerFrame: number | null = null;
+    let idleCallbackId: number | null = null;
+    let deferredTimer: number | null = null;
+    let estadoActual: EstadoUi = "cargando";
+    let playbackPath: PlaybackPath = "none";
+    let startedAt = 0;
+    let ultimoError: ErrorCamaraTipo = "unknown";
+    let ultimaCausa = "";
+    let destroyed = false;
+
+    const params = new URLSearchParams(window.location.search);
+    const debugEnabled = params.get("debugCam") === "1";
+    const debugLog = document.getElementById("debug-log");
+    const debugInfo = document.getElementById("debug-info");
+    const debugPanel = document.getElementById("debug-panel");
+    const MAX_LOGS = 40;
+    const logs: string[] = [];
+
+    if (debugPanel && debugEnabled && !isHero) {
+      debugPanel.classList.remove("oculto");
+    }
+
+    let mediaAbort = new AbortController();
+
+    function resetMediaListeners() {
+      mediaAbort.abort();
+      mediaAbort = new AbortController();
+    }
+
+    function logDebug(message: string) {
+      if (!debugEnabled) return;
+      const stamp = new Date().toLocaleTimeString("es-ES", {
+        hour12: false,
+        timeZone: "Europe/Madrid",
+      });
+      logs.unshift(`[${stamp}] ${message}`);
+      if (logs.length > MAX_LOGS) logs.length = MAX_LOGS;
+      if (debugLog) debugLog.textContent = logs.join("\n");
+    }
+
+    function track(
+      event:
+        | "cam_ready"
+        | "cam_error"
+        | "cam_fallback"
+        | "cam_unsupported"
+        | "cam_quality_change",
+      extra: Partial<CamaraAnalyticsPayload> = {},
+    ) {
+      umamiTrack(event, {
+        mode,
+        route: window.location.pathname,
+        path: playbackPath,
+        reintentos,
+        calidad: calidadActual,
+        ...extra,
+      });
+    }
+
+    function syncCalidadUi() {
+      if (!selectorCalidad || isHero) return;
+
+      btnCalidadHd?.classList.toggle("oculto", !hdDisponible);
+
+      const visible = estadoActual === "video" && hdDisponible;
+      selectorCalidad.classList.toggle("oculto", !visible);
+
+      btnCalidadSd?.classList.toggle("activo", calidadActual === "sd");
+      btnCalidadHd?.classList.toggle("activo", calidadActual === "hd");
+      btnCalidadSd?.setAttribute(
+        "aria-pressed",
+        calidadActual === "sd" ? "true" : "false",
+      );
+      btnCalidadHd?.setAttribute(
+        "aria-pressed",
+        calidadActual === "hd" ? "true" : "false",
+      );
+      badgeHd?.classList.toggle("oculto", calidadActual !== "hd");
+    }
+
+    function cambiarCalidad(nueva: CalidadCamara) {
+      if (isHero || nueva === calidadActual) return;
+      if (nueva === "hd" && !hdDisponible) return;
+
+      logDebug(`calidad -> ${nueva}`);
+      calidadActual = nueva;
+      streamUrl = streamUrlForCalidad(calidadActual);
+      writeStoredCalidad(calidadActual);
+      track("cam_quality_change", { calidad: nueva });
+      onReintentar();
+    }
+
+    function onCalidadSdClick() {
+      cambiarCalidad("sd");
+    }
+
+    function onCalidadHdClick() {
+      cambiarCalidad("hd");
+    }
+
+    function setProgreso(texto: string) {
+      if (elProgreso) elProgreso.textContent = texto;
+    }
+
+    function emitEstado(estado: EstadoUi) {
+      wrapper.dataset.camaraEstado = estado;
+      wrapper.dispatchEvent(
+        new CustomEvent("camara:estado", {
+          detail: { estado, mode, causa: ultimaCausa, tipo: ultimoError },
+          bubbles: true,
+        }),
+      );
+    }
+
+    function renderInfo(extra = "") {
+      if (!debugEnabled || !debugInfo) return;
+      const isTypeSupported = window.MediaSource?.isTypeSupported?.bind(
+        window.MediaSource,
+      );
+      const nativeHls =
+        video.canPlayType("application/vnd.apple.mpegurl") || "no";
+      const codecsActuales = isHero
+        ? CAMERA_SD_CODECS
+        : codecsForCalidad(calidadActual);
+      debugInfo.textContent = formatDebugInfo({
+        UA: navigator.userAgent,
+        MSE: typeof window.MediaSource !== "undefined" ? "si" : "no",
+        "hls.js": Hls.isSupported() ? "si" : "no",
+        "HLS nativo": nativeHls,
+        "HD disponible": hdDisponible ? "si" : "no",
+        calidad: calidadActual,
+        "MSE códec": mseSupportsCodecs(codecsActuales, isTypeSupported)
+          ? "si"
+          : "no",
+        "native códec": nativeSupportsCodecs(
+          codecsActuales,
+          video.canPlayType.bind(video),
+        )
+          ? "si"
+          : "no",
+        stream: streamUrl,
+        codecs: codecsActuales,
+        path: playbackPath,
+        reintentos: `${reintentos}/${MAX_REINTENTOS}`,
+        mode,
+        session: sessionId,
+        estado_actual: estadoActual,
+        ultimo_error: ultimaCausa || "—",
+        ...(extra ? { extra } : {}),
+      });
+    }
+
+    function fullscreenElementActual(): Element | null {
+      return (
+        document.fullscreenElement ??
+        (document as Document & { webkitFullscreenElement?: Element | null })
+          .webkitFullscreenElement ??
+        null
+      );
+    }
+
+    function syncUiFullscreen() {
+      if (!btnFullscreen || !iconoExpandir || !iconoContraer) return;
+      const fs = fullscreenElementActual();
+      const activo = fs === wrapper || fs === video;
+      btnFullscreen.setAttribute("aria-pressed", activo ? "true" : "false");
+      btnFullscreen.setAttribute(
+        "aria-label",
+        activo ? "Salir de pantalla completa" : "Pantalla completa",
+      );
+      iconoExpandir.classList.toggle("oculto", activo);
+      iconoContraer.classList.toggle("oculto", !activo);
+    }
+
+    async function salirFullscreen() {
+      const doc = document as Document & {
+        webkitExitFullscreen?: () => void;
+      };
+      if (document.exitFullscreen) {
+        await document.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
       }
-      const webkit = (
-        el as HTMLElement & { webkitRequestFullscreen?: () => void }
-      ).webkitRequestFullscreen;
-      if (webkit) {
-        webkit.call(el);
-        return;
-      }
-      throw new Error("sin fullscreen");
-    };
+    }
 
-    try {
-      await intentar(wrapper);
-    } catch {
+    async function entrarFullscreen() {
+      const v = video as HTMLVideoElement & {
+        webkitEnterFullscreen?: () => void;
+      };
+
+      const intentar = async (el: HTMLElement) => {
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+          return;
+        }
+        const webkit = (
+          el as HTMLElement & { webkitRequestFullscreen?: () => void }
+        ).webkitRequestFullscreen;
+        if (webkit) {
+          webkit.call(el);
+          return;
+        }
+        throw new Error("sin fullscreen");
+      };
+
       try {
-        await intentar(video);
+        await intentar(wrapper);
       } catch {
-        if (v.webkitEnterFullscreen) {
-          v.webkitEnterFullscreen();
+        try {
+          await intentar(video);
+        } catch {
+          if (v.webkitEnterFullscreen) {
+            v.webkitEnterFullscreen();
+          }
         }
       }
     }
-  }
 
-  async function toggleFullscreen() {
-    if (fullscreenElementActual()) {
-      await salirFullscreen();
-    } else {
-      await entrarFullscreen();
-    }
-  }
-
-  if (btnFullscreen) {
-    btnFullscreen.addEventListener("click", () => {
-      toggleFullscreen().catch(() => {});
-    });
-  }
-
-  document.addEventListener("fullscreenchange", syncUiFullscreen);
-  document.addEventListener(
-    "webkitfullscreenchange",
-    syncUiFullscreen as EventListener,
-  );
-
-  const MAX_REINTENTOS = 3;
-  const DELAY_REINTENTO_MS = 4000;
-  const TIMEOUT_CARGA_MS = 15000;
-  let reintentos = 0;
-  let hls: Hls | null = null;
-  let timeoutReintento: ReturnType<typeof setTimeout> | null = null;
-  let timeoutCarga: ReturnType<typeof setTimeout> | null = null;
-  let estadoActual: EstadoUi = "cargando";
-  const MAX_LOGS = 30;
-  const logs: string[] = [];
-  const params = new URLSearchParams(window.location.search);
-  const debugEnabled = params.get("debugCam") === "1";
-  const debugLog = document.getElementById("debug-log");
-  const debugInfo = document.getElementById("debug-info");
-  const debugPanel = document.getElementById("debug-panel");
-
-  if (debugPanel && debugEnabled) {
-    debugPanel.classList.remove("oculto");
-  }
-
-  function logDebug(message: string) {
-    if (!debugEnabled) return;
-    const stamp = new Date().toLocaleTimeString("es-ES", {
-      hour12: false,
-      timeZone: "Europe/Madrid",
-    });
-    logs.unshift(`[${stamp}] ${message}`);
-    if (logs.length > MAX_LOGS) logs.length = MAX_LOGS;
-    if (debugLog) debugLog.textContent = logs.join("\n");
-  }
-
-  function renderInfo(extra = "") {
-    if (!debugEnabled) return;
-    if (!debugInfo) return;
-    const mediaSourceOk = typeof window.MediaSource !== "undefined";
-    const nativeHls = video.canPlayType("application/vnd.apple.mpegurl") || "no";
-    const hlsJsSupport = Hls.isSupported();
-    const lines = [
-      `UA: ${navigator.userAgent}`,
-      `MSE: ${mediaSourceOk ? "si" : "no"}`,
-      `hls.js soportado: ${hlsJsSupport ? "si" : "no"}`,
-      `HLS nativo: ${nativeHls}`,
-      `stream: ${url}`,
-      `reintentos: ${reintentos}/${MAX_REINTENTOS}`,
-      `mode: ${isHero ? "hero" : "page"}`,
-    ];
-    if (extra) lines.push(extra);
-    debugInfo.textContent = lines.join("\n");
-  }
-
-  function mostrar(estado: EstadoUi) {
-    estadoActual = estado;
-    elCargando.classList.toggle("oculto", estado !== "cargando");
-    elError?.classList.toggle("oculto", estado !== "error");
-    elNoSoportado?.classList.toggle("oculto", estado !== "no-soportado");
-    video.classList.toggle("oculto", estado !== "video");
-    elFallback?.classList.toggle("oculto", estado !== "fallback");
-    elIndicadorDirecto?.classList.toggle("oculto", estado !== "video");
-    btnFullscreen?.classList.toggle("oculto", estado !== "video");
-
-    if (estado === "fallback" && elFallback) {
-      elFallback.play().catch(() => {});
-    }
-
-    if (estado !== "video") {
+    async function toggleFullscreen() {
       if (fullscreenElementActual()) {
-        salirFullscreen().catch(() => {});
+        await salirFullscreen();
+      } else {
+        await entrarFullscreen();
       }
-      syncUiFullscreen();
     }
-    logDebug(`estado UI -> ${estado}`);
-    renderInfo(`estado_actual: ${estado}`);
-  }
 
-  function cancelarTimeoutCarga() {
-    if (timeoutCarga) {
-      clearTimeout(timeoutCarga);
-      timeoutCarga = null;
-    }
-  }
-
-  function destruirHls() {
-    if (hls) {
-      logDebug("destruyendo instancia hls.js");
-      hls.destroy();
-      hls = null;
-    }
-    if (timeoutReintento) {
-      clearTimeout(timeoutReintento);
-      timeoutReintento = null;
-    }
-    cancelarTimeoutCarga();
-  }
-
-  function fallarDefinitivo() {
-    if (isHero) {
-      logDebug("hero: fallback al vídeo del Faedo");
-      mostrar("fallback");
-      return;
-    }
-    logDebug("sin más reintentos, mostrando estado de error");
-    mostrar("error");
-  }
-
-  function onError() {
-    logDebug("error fatal de reproducción");
-    destruirHls();
-    if (reintentos < MAX_REINTENTOS) {
-      reintentos++;
-      logDebug(
-        `reintentando en ${DELAY_REINTENTO_MS}ms (${reintentos}/${MAX_REINTENTOS})`,
-      );
-      timeoutReintento = setTimeout(iniciarStream, DELAY_REINTENTO_MS);
-    } else {
-      fallarDefinitivo();
-    }
-  }
-
-  function iniciarStream() {
-    destruirHls();
-    wrapper.classList.remove("camara-wrapper--deferred");
-    mostrar("cargando");
-    renderInfo();
-    logDebug("iniciando stream");
-
-    timeoutCarga = setTimeout(() => {
-      if (estadoActual === "cargando") {
-        logDebug(`timeout de carga (${TIMEOUT_CARGA_MS}ms)`);
-        onError();
-      }
-    }, TIMEOUT_CARGA_MS);
-
-    if (Hls.isSupported()) {
-      logDebug("ruta hls.js (MSE)");
-      hls = new Hls({
-        lowLatencyMode: true,
-        backBufferLength: 0,
-        maxBufferLength: 10,
+    function onFullscreenClick() {
+      toggleFullscreen().catch((err) => {
+        logDebug(
+          `fullscreen falló: ${err instanceof Error ? err.message : String(err)}`,
+        );
       });
+    }
 
-      hls.loadSource(url);
-      hls.attachMedia(video);
+    function mostrar(estado: EstadoUi) {
+      estadoActual = estado;
+      elCargando?.classList.toggle("oculto", estado !== "cargando");
+      elError?.classList.toggle("oculto", estado !== "error");
+      elNoSoportado?.classList.toggle("oculto", estado !== "no-soportado");
+      video.classList.toggle("oculto", estado !== "video");
+      elFallback?.classList.toggle("oculto", estado !== "fallback");
+      elIndicadorDirecto?.classList.toggle("oculto", estado !== "video");
+      btnFullscreen?.classList.toggle("oculto", estado !== "video");
+      syncCalidadUi();
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        logDebug("manifest parseado correctamente");
-        cancelarTimeoutCarga();
-        video.play().catch(() => {});
-        mostrar("video");
+      if (estado === "fallback" && elFallback) {
+        elFallback.play().catch(() => {});
+      }
+
+      if (estado !== "video") {
+        if (fullscreenElementActual()) {
+          salirFullscreen().catch(() => {});
+        }
+        syncUiFullscreen();
+      }
+
+      emitEstado(estado);
+      logDebug(`estado UI -> ${estado}`);
+      renderInfo();
+    }
+
+    function cancelarTimeoutCarga() {
+      if (timeoutCarga) {
+        clearTimeout(timeoutCarga);
+        timeoutCarga = null;
+      }
+    }
+
+    function cancelarTimeoutPrimerFrame() {
+      if (timeoutPrimerFrame) {
+        clearTimeout(timeoutPrimerFrame);
+        timeoutPrimerFrame = null;
+      }
+    }
+
+    function resetVideoElement() {
+      try {
+        video.pause();
+      } catch {
+        // ignore
+      }
+      video.removeAttribute("src");
+      video.load();
+    }
+
+    function destruirHls() {
+      if (hls) {
+        logDebug("destruyendo instancia hls.js");
+        hls.destroy();
+        hls = null;
+      }
+      if (timeoutReintento) {
+        clearTimeout(timeoutReintento);
+        timeoutReintento = null;
+      }
+      cancelarTimeoutCarga();
+      cancelarTimeoutPrimerFrame();
+      resetMediaListeners();
+    }
+
+    function fallarDefinitivo(tipo: ErrorCamaraTipo, details: string) {
+      ultimoError = tipo;
+      ultimaCausa = details;
+      const ms = startedAt ? Date.now() - startedAt : undefined;
+
+      if (isHero) {
+        logDebug(`hero: fallback (${tipo}) ${details}`);
+        track("cam_fallback", { type: tipo, details, ms });
+        mostrar("fallback");
+        return;
+      }
+
+      if (tipo === "unsupported" || tipo === "codec") {
+        logDebug(`no soportado: ${details}`);
+        track("cam_unsupported", { type: tipo, details, ms });
+        if (calidadActual === "hd" && !isHero) {
+          calidadActual = "sd";
+          streamUrl = streamUrlForCalidad("sd");
+          writeStoredCalidad("sd");
+        }
+        mostrar("no-soportado");
+        return;
+      }
+
+      if (elTextoError) {
+        elTextoError.textContent =
+          tipo === "timeout"
+            ? "La cámara tarda demasiado en responder. Comprueba tu conexión e inténtalo de nuevo."
+            : "La cámara no está disponible en este momento.";
+      }
+      logDebug(`error definitivo: ${tipo} / ${details}`);
+      track("cam_error", { type: tipo, details, ms });
+      mostrar("error");
+    }
+
+    function onError(tipo: ErrorCamaraTipo, details: string, session: number) {
+      if (destroyed || session !== sessionId) return;
+      ultimoError = tipo;
+      ultimaCausa = details;
+      logDebug(`error -> ${tipo}: ${details}`);
+      renderInfo();
+      destruirHls();
+      resetVideoElement();
+
+      if (shouldRetryError(tipo, reintentos, MAX_REINTENTOS)) {
+        reintentos++;
+        const delay = nextRetryDelayMs(reintentos, DELAY_REINTENTO_MS);
+        setProgreso(`Reintentando… (${reintentos}/${MAX_REINTENTOS})`);
+        logDebug(`reintento en ${delay}ms (${reintentos}/${MAX_REINTENTOS})`);
+        timeoutReintento = window.setTimeout(() => {
+          if (!destroyed && sessionId === session) {
+            iniciarStream();
+          }
+        }, delay);
+        return;
+      }
+
+      fallarDefinitivo(tipo, details);
+    }
+
+    async function marcarListo(session: number) {
+      if (destroyed || session !== sessionId) return;
+      cancelarTimeoutCarga();
+      setProgreso("Arrancando reproducción…");
+
+      try {
+        await video.play();
+      } catch (err) {
+        const name = err instanceof Error ? err.name : "Error";
+        const message = err instanceof Error ? err.message : String(err);
+        logDebug(`play() rechazado: ${name} ${message}`);
+        if (name === "NotAllowedError") {
+          // Muted autoplay debería funcionar; si no, mostramos el vídeo igual.
+          logDebug("autoplay bloqueado; se muestra el vídeo en pausa");
+        } else if (name !== "AbortError") {
+          onError("play", `${name}: ${message}`, session);
+          return;
+        }
+      }
+
+      if (destroyed || session !== sessionId) return;
+
+      const confirmar = () => {
+        if (destroyed || session !== sessionId) return;
+        if (estadoActual === "video") return;
+        cancelarTimeoutPrimerFrame();
+        const ms = Date.now() - startedAt;
         reintentos = 0;
+        setProgreso("");
+        mostrar("video");
+        track("cam_ready", { ms });
+        logDebug(`listo en ${ms}ms vía ${playbackPath}`);
+      };
+
+      if (!video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        confirmar();
+        return;
+      }
+
+      const onPlaying = () => confirmar();
+      const onLoaded = () => {
+        if (!video.paused) confirmar();
+      };
+      video.addEventListener("playing", onPlaying, {
+        once: true,
+        signal: mediaAbort.signal,
+      });
+      video.addEventListener("loadeddata", onLoaded, {
+        once: true,
+        signal: mediaAbort.signal,
       });
 
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        const details = `${data.type} / ${data.details} / fatal=${data.fatal ? "si" : "no"}`;
-        logDebug(`hls.js error -> ${details}`);
-        renderInfo(`ultimo_error: ${details}`);
-        if (data.fatal) onError();
+      cancelarTimeoutPrimerFrame();
+      timeoutPrimerFrame = window.setTimeout(() => {
+        if (destroyed || session !== sessionId || estadoActual === "video") {
+          return;
+        }
+        // Si hay datos aunque no haya disparado playing, mostramos.
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          confirmar();
+          return;
+        }
+        onError(
+          "timeout",
+          `sin primer frame en ${TIMEOUT_PRIMER_FRAME_MS}ms`,
+          session,
+        );
+      }, TIMEOUT_PRIMER_FRAME_MS);
+    }
+
+    function iniciarStream() {
+      if (destroyed) return;
+      destruirHls();
+      resetVideoElement();
+
+      sessionId += 1;
+      const session = sessionId;
+      if (!startedAt) startedAt = Date.now();
+
+      wrapper.classList.remove("camara-wrapper--deferred");
+      mostrar("cargando");
+      setProgreso(
+        reintentos > 0
+          ? `Conectando… intento ${reintentos + 1}`
+          : "Obteniendo señal…",
+      );
+      renderInfo();
+      logDebug(`iniciando stream session=${session} calidad=${calidadActual}`);
+
+      const isTypeSupported = window.MediaSource?.isTypeSupported?.bind(
+        window.MediaSource,
+      );
+      const codecsActuales = isHero
+        ? CAMERA_SD_CODECS
+        : codecsForCalidad(calidadActual);
+      playbackPath = choosePlaybackPathForKnownStream({
+        hlsJsSupported: Hls.isSupported(),
+        nativeHls: !!video.canPlayType("application/vnd.apple.mpegurl"),
+        isTypeSupported,
+        canPlayType: video.canPlayType.bind(video),
+        codecs: codecsActuales,
       });
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      logDebug("ruta HLS nativo");
-      video.src = url;
+      logDebug(`ruta elegida: ${playbackPath}`);
+      renderInfo();
+
+      if (playbackPath === "none") {
+        onError(
+          "unsupported",
+          `sin soporte para ${codecsActuales}`,
+          session,
+        );
+        return;
+      }
+
+      timeoutCarga = window.setTimeout(() => {
+        if (destroyed || session !== sessionId) return;
+        if (estadoActual === "cargando") {
+          onError("timeout", `timeout de carga (${TIMEOUT_CARGA_MS}ms)`, session);
+        }
+      }, TIMEOUT_CARGA_MS);
+
+      if (playbackPath === "hlsjs") {
+        setProgreso("Cargando manifiesto HLS…");
+        hls = new Hls({
+          lowLatencyMode: true,
+          backBufferLength: 30,
+          maxBufferLength: 20,
+          enableWorker: true,
+        });
+
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (session !== sessionId) return;
+          logDebug("manifest parseado");
+          setProgreso("Manifiesto listo, esperando vídeo…");
+          void marcarListo(session);
+        });
+
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (session !== sessionId) return;
+          const details = `${data.type} / ${data.details} / fatal=${data.fatal ? "si" : "no"}`;
+          logDebug(`hls.js error -> ${details}`);
+          renderInfo(details);
+          if (!data.fatal) return;
+          const tipo = classifyHlsError(data);
+          onError(tipo, details, session);
+        });
+        return;
+      }
+
+      // Ruta HLS nativa (Safari/iOS)
+      setProgreso("Cargando stream nativo…");
+      video.src = streamUrl;
       video.load();
 
       video.addEventListener(
         "canplay",
         () => {
-          logDebug("video canplay en HLS nativo");
-          cancelarTimeoutCarga();
-          video.play().catch(() => {});
-          mostrar("video");
-          reintentos = 0;
+          if (session !== sessionId) return;
+          logDebug("canplay nativo");
+          void marcarListo(session);
         },
-        { once: true },
+        { once: true, signal: mediaAbort.signal },
       );
 
       video.addEventListener(
         "error",
         () => {
+          if (session !== sessionId) return;
           const mediaError = video.error;
           const details = mediaError
             ? `code=${mediaError.code}, message=${mediaError.message || "sin mensaje"}`
             : "error nativo sin detalle";
           logDebug(`video error nativo -> ${details}`);
-          renderInfo(`ultimo_error: ${details}`);
-          onError();
+          onError(
+            mediaError?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+              ? "codec"
+              : "media",
+            details,
+            session,
+          );
         },
-        { once: true },
+        { once: true, signal: mediaAbort.signal },
       );
-    } else {
-      logDebug("navegador sin soporte HLS");
-      cancelarTimeoutCarga();
-      if (isHero) {
-        fallarDefinitivo();
-      } else {
-        mostrar("no-soportado");
-      }
     }
+
+    function onReintentar() {
+      logDebug("click en reintentar");
+      reintentos = 0;
+      startedAt = Date.now();
+      ultimoError = "unknown";
+      ultimaCausa = "";
+      iniciarStream();
+    }
+
+    btnFullscreen?.addEventListener("click", onFullscreenClick);
+    btnReintentar?.addEventListener("click", onReintentar);
+    btnCalidadSd?.addEventListener("click", onCalidadSdClick);
+    btnCalidadHd?.addEventListener("click", onCalidadHdClick);
+    document.addEventListener("fullscreenchange", syncUiFullscreen);
+    document.addEventListener(
+      "webkitfullscreenchange",
+      syncUiFullscreen as EventListener,
+    );
+
+    renderInfo("esperando inicio");
+
+    if (deferred) {
+      wrapper.classList.add("camara-wrapper--deferred");
+      setProgreso("Esperando para no bloquear la carga de la página…");
+      const kickoff = () => {
+        idleCallbackId = null;
+        deferredTimer = null;
+        if (!destroyed) iniciarStream();
+      };
+      const ric = (
+        window as Window & {
+          requestIdleCallback?: (
+            cb: IdleRequestCallback,
+            opts?: IdleRequestOptions,
+          ) => number;
+          cancelIdleCallback?: (id: number) => void;
+        }
+      ).requestIdleCallback;
+      if (ric) {
+        idleCallbackId = ric(kickoff, { timeout: DEFERRED_IDLE_TIMEOUT_MS });
+      } else {
+        deferredTimer = window.setTimeout(kickoff, 1);
+      }
+    } else {
+      iniciarStream();
+    }
+
+    return {
+      wrapper,
+      destroy() {
+        if (destroyed) return;
+        destroyed = true;
+        sessionId += 1;
+        logDebug("destroy controller");
+        destruirHls();
+        resetVideoElement();
+
+        if (idleCallbackId != null) {
+          (
+            window as Window & { cancelIdleCallback?: (id: number) => void }
+          ).cancelIdleCallback?.(idleCallbackId);
+          idleCallbackId = null;
+        }
+        if (deferredTimer) {
+          clearTimeout(deferredTimer);
+          deferredTimer = null;
+        }
+
+        btnFullscreen?.removeEventListener("click", onFullscreenClick);
+        btnReintentar?.removeEventListener("click", onReintentar);
+        btnCalidadSd?.removeEventListener("click", onCalidadSdClick);
+        btnCalidadHd?.removeEventListener("click", onCalidadHdClick);
+        document.removeEventListener("fullscreenchange", syncUiFullscreen);
+        document.removeEventListener(
+          "webkitfullscreenchange",
+          syncUiFullscreen as EventListener,
+        );
+
+        if (elFallback) {
+          try {
+            elFallback.pause();
+          } catch {
+            // ignore
+          }
+        }
+      },
+    };
   }
 
-  btnReintentar?.addEventListener("click", () => {
-    logDebug("click en reintentar");
-    reintentos = 0;
-    iniciarStream();
-  });
-
-  renderInfo("esperando inicio");
-
-  if (deferred) {
-    wrapper.classList.add("camara-wrapper--deferred");
-    const kickoff = () => iniciarStream();
-    const ric = (
-      window as Window & {
-        requestIdleCallback?: (
-          cb: IdleRequestCallback,
-          opts?: IdleRequestOptions,
-        ) => number;
-      }
-    ).requestIdleCallback;
-    if (ric) {
-      ric(kickoff, { timeout: 2500 });
-    } else {
-      window.setTimeout(kickoff, 1);
+  function mountCamera() {
+    const wrapper = document.getElementById("camara-wrapper");
+    if (!wrapper) {
+      active?.destroy();
+      active = null;
+      return;
     }
-  } else {
-    iniciarStream();
+    if (active?.wrapper === wrapper) return;
+    active?.destroy();
+    active = createCamera(wrapper);
+  }
+
+  function unmountCamera() {
+    active?.destroy();
+    active = null;
+  }
+
+  document.addEventListener("astro:page-load", mountCamera);
+  document.addEventListener("astro:before-swap", unmountCamera);
+
+  // Primera carga (sin esperar al evento si el DOM ya está listo).
+  if (document.getElementById("camara-wrapper")) {
+    mountCamera();
   }
 </script>
 
@@ -615,6 +1067,69 @@ const isHero = mode === "hero";
     outline-offset: 2px;
   }
 
+  .selector-calidad {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: 0.375rem;
+    background: rgba(2, 44, 34, 0.75);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+  }
+
+  .btn-calidad {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--color-emerald-200);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s;
+  }
+
+  .btn-calidad:hover {
+    background: rgba(6, 78, 59, 0.65);
+  }
+
+  .btn-calidad:focus {
+    outline: none;
+  }
+
+  .btn-calidad:focus-visible {
+    outline: 2px solid var(--color-emerald-300);
+    outline-offset: 1px;
+  }
+
+  .btn-calidad.activo {
+    background: rgba(6, 78, 59, 0.95);
+    border-color: var(--color-emerald-600);
+    color: #fff;
+  }
+
+  .badge-hd {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.2rem;
+    background: var(--color-emerald-600);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
   .camara-estado {
     position: absolute;
     inset: 0;
@@ -629,6 +1144,13 @@ const isHero = mode === "hero";
 
   .estado-cargando {
     gap: 1rem;
+  }
+
+  .progreso-cargando {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-emerald-500);
+    min-height: 1rem;
   }
 
   .logo-cargando {

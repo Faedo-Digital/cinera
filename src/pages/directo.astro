@@ -17,13 +17,21 @@ import Weather from "@/components/Weather.astro";
     />
 
     <div class="max-w-4xl mx-auto mt-8 space-y-4">
-      <!-- Indicador de directo + reloj -->
+      <!-- Indicador de directo + reloj (sincronizado con el estado real de la cámara) -->
       <div class="flex items-center justify-between text-sm text-slate-500">
-        <div class="flex items-center gap-2">
+        <div
+          id="badge-directo"
+          class="flex items-center gap-2"
+          data-estado="cargando"
+        >
           <span
-            class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"
+            id="badge-directo-punto"
+            class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"
+            aria-hidden="true"
           ></span>
-          <span class="font-medium text-slate-700">En directo</span>
+          <span id="badge-directo-texto" class="font-medium text-slate-700"
+            >Conectando…</span
+          >
         </div>
         <time id="reloj" datetime="" class="tabular-nums"></time>
       </div>
@@ -75,26 +83,102 @@ import Weather from "@/components/Weather.astro";
 </Layout>
 
 <script>
-  function actualizarReloj() {
-    const reloj = document.getElementById("reloj");
-    if (!reloj) return;
+  type BadgeEstado = "cargando" | "video" | "error" | "no-soportado" | "fallback";
 
-    const ahora = new Date();
-    const opciones: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZone: "Europe/Madrid",
-    };
+  type DirectoUi = {
+    destroy: () => void;
+  };
 
-    const texto = ahora.toLocaleString("es-ES", opciones);
-    reloj.textContent = texto;
-    reloj.setAttribute("datetime", ahora.toISOString());
+  let activo: DirectoUi | null = null;
+
+  function syncBadge(estado: BadgeEstado) {
+    const badge = document.getElementById("badge-directo");
+    const punto = document.getElementById("badge-directo-punto");
+    const texto = document.getElementById("badge-directo-texto");
+    if (!badge || !punto || !texto) return;
+
+    badge.dataset.estado = estado;
+    punto.classList.remove("bg-red-500", "bg-amber-500", "bg-slate-400");
+
+    switch (estado) {
+      case "video":
+        punto.classList.add("bg-red-500", "animate-pulse");
+        texto.textContent = "En directo";
+        break;
+      case "cargando":
+        punto.classList.add("bg-amber-500", "animate-pulse");
+        texto.textContent = "Conectando…";
+        break;
+      case "no-soportado":
+        punto.classList.remove("animate-pulse");
+        punto.classList.add("bg-slate-400");
+        texto.textContent = "No compatible";
+        break;
+      case "error":
+      case "fallback":
+      default:
+        punto.classList.remove("animate-pulse");
+        punto.classList.add("bg-slate-400");
+        texto.textContent = "Sin señal";
+        break;
+    }
   }
 
-  actualizarReloj();
-  setInterval(actualizarReloj, 1000);
+  function mountDirecto() {
+    const reloj = document.getElementById("reloj");
+    const camara = document.getElementById("camara-wrapper");
+    if (!reloj && !camara) return;
+
+    activo?.destroy();
+
+    function actualizarReloj() {
+      const el = document.getElementById("reloj");
+      if (!el) return;
+
+      const ahora = new Date();
+      const opciones: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "Europe/Madrid",
+      };
+
+      el.textContent = ahora.toLocaleString("es-ES", opciones);
+      el.setAttribute("datetime", ahora.toISOString());
+    }
+
+    actualizarReloj();
+    const intervalId = window.setInterval(actualizarReloj, 1000);
+
+    const onEstado = (event: Event) => {
+      const detail = (event as CustomEvent<{ estado?: BadgeEstado }>).detail;
+      if (detail?.estado) syncBadge(detail.estado);
+    };
+
+    camara?.addEventListener("camara:estado", onEstado);
+    const inicial = camara?.dataset.camaraEstado as BadgeEstado | undefined;
+    syncBadge(inicial ?? "cargando");
+
+    activo = {
+      destroy() {
+        clearInterval(intervalId);
+        camara?.removeEventListener("camara:estado", onEstado);
+      },
+    };
+  }
+
+  function unmountDirecto() {
+    activo?.destroy();
+    activo = null;
+  }
+
+  document.addEventListener("astro:page-load", mountDirecto);
+  document.addEventListener("astro:before-swap", unmountDirecto);
+
+  if (document.getElementById("reloj") || document.getElementById("camara-wrapper")) {
+    mountDirecto();
+  }
 </script>

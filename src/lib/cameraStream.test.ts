@@ -52,11 +52,12 @@ describe("calidad / URLs", () => {
     expect(codecsForCalidad("hd")).toBe(CAMERA_HD_CODECS);
   });
 
-  it("resolveCalidadInicial respeta soporte HD", () => {
+  it("resolveCalidadInicial usa HD por defecto si hay soporte", () => {
+    expect(resolveCalidadInicial(true, null)).toBe("hd");
     expect(resolveCalidadInicial(true, "hd")).toBe("hd");
-    expect(resolveCalidadInicial(false, "hd")).toBe("sd");
-    expect(resolveCalidadInicial(true, null)).toBe("sd");
     expect(resolveCalidadInicial(true, "sd")).toBe("sd");
+    expect(resolveCalidadInicial(false, null)).toBe("sd");
+    expect(resolveCalidadInicial(false, "hd")).toBe("sd");
   });
 
   it("localStorage guarda y lee calidad", () => {

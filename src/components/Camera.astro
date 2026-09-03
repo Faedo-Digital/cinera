@@ -294,6 +294,7 @@ const isHero = mode === "hero";
     let estadoActual: EstadoUi = "cargando";
     let playbackPath: PlaybackPath = "none";
     let startedAt = 0;
+    let degradadoASd = false;
     let ultimoError: ErrorCamaraTipo = "unknown";
     let ultimaCausa = "";
     let destroyed = false;
@@ -376,6 +377,8 @@ const isHero = mode === "hero";
       calidadActual = nueva;
       streamUrl = streamUrlForCalidad(calidadActual);
       writeStoredCalidad(calidadActual);
+      // Elección manual: permitimos otra degradación automática si HD vuelve a fallar.
+      degradadoASd = false;
       track("cam_quality_change", { calidad: nueva });
       onReintentar();
     }
@@ -600,14 +603,23 @@ const isHero = mode === "hero";
         return;
       }
 
+      // HD es la calidad por defecto: si falla, degradamos a SD antes de rendirnos.
+      if (calidadActual === "hd" && !degradadoASd) {
+        degradadoASd = true;
+        logDebug(`HD falló (${tipo}); degradando a SD`);
+        track("cam_fallback", { type: tipo, details, ms, calidad: "hd" });
+        calidadActual = "sd";
+        streamUrl = streamUrlForCalidad("sd");
+        writeStoredCalidad("sd");
+        reintentos = 0;
+        syncCalidadUi();
+        iniciarStream();
+        return;
+      }
+
       if (tipo === "unsupported" || tipo === "codec") {
         logDebug(`no soportado: ${details}`);
         track("cam_unsupported", { type: tipo, details, ms });
-        if (calidadActual === "hd" && !isHero) {
-          calidadActual = "sd";
-          streamUrl = streamUrlForCalidad("sd");
-          writeStoredCalidad("sd");
-        }
         mostrar("no-soportado");
         return;
       }

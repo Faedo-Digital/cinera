@@ -236,12 +236,14 @@ export function browserSupportsHevc(input: {
   return mseSupportsCodecs(CAMERA_HD_CODECS, input.isTypeSupported);
 }
 
+/** HD por defecto cuando el navegador lo soporta; la preferencia guardada manda. */
 export function resolveCalidadInicial(
   hdSupported: boolean,
   stored: CalidadCamara | null,
 ): CalidadCamara {
-  if (stored === "hd" && hdSupported) return "hd";
-  return "sd";
+  if (!hdSupported) return "sd";
+  if (stored === "sd") return "sd";
+  return "hd";
 }
 
 export function choosePlaybackPathForKnownStream(input: {

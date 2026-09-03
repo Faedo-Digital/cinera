@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # astro check / Volar dependen de la API programática de TS, ausente en TS 7.
+      # Revisar cuando Astro soporte la nueva API de TS 7.1.
+      # https://github.com/withastro/roadmap/discussions/1321
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 1
     rebase-strategy: "auto"
     groups:
